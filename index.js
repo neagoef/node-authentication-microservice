@@ -1,7 +1,7 @@
 'use strict';
 
 var PromiseA = require('bluebird');
-var sqlite3 = require('./sqlite-server');
+var sqlite3 = require('./sqlite3-server');
 var path = require('path');
 
 sqlite3.create({
