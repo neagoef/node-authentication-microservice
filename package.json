@@ -1,0 +1,38 @@
+{
+  "name": "authn",
+  "version": "1.0.0",
+  "description": "Authentication as a (Micro)Service",
+  "main": "app.js",
+  "dependencies": {
+    "bluebird": "^2.9.33",
+    "ws": "^0.7.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "bash ./install-sqlcipher.bash"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coolaj86/authentication-microservice.git"
+  },
+  "keywords": [
+    "authn",
+    "authz",
+    "authorization",
+    "authorize",
+    "service",
+    "microservice",
+    "micro",
+    "users",
+    "login",
+    "email",
+    "phone"
+  ],
+  "author": "AJ ONeal <coolaj86@gmail.com> (http://coolaj86.com/)",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/coolaj86/authentication-microservice/issues"
+  },
+  "homepage": "https://github.com/coolaj86/authentication-microservice#readme"
+}
