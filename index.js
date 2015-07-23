@@ -7,7 +7,7 @@ var path = require('path');
 sqlite3.create({
     key: '1892d335081d8d346e556c9c3c8ff2c3'
   , bits: 128
-  , storage: path.join('/tmp/authn.sqlcipher')
+  , filename: path.join('/tmp/authn.sqlcipher')
   , verbose: false
 }).then(function (db) {
   var DB = {};
@@ -85,12 +85,9 @@ sqlite3.create({
   };
 
   return new PromiseA(function (resolve, reject) {
-    db.serialize(function() {
-      PromiseA.all([
-        db.runAsync("CREATE TABLE IF NOT EXISTS '" + sqlite3.sanitize(tablename)
-          + "' (id TEXT, secret TEXT, json TEXT, PRIMARY KEY(id))")
-      ]).then(function () { resolve(DB); }, reject);
-    });
+    db.runAsync("CREATE TABLE IF NOT EXISTS '" + sqlite3.sanitize(tablename)
+      + "' (id TEXT, secret TEXT, json TEXT, PRIMARY KEY(id))"
+    ).then(function () { resolve(DB); }, reject);
   });
 }).then(function (DB) {
   var data = { secret: 'super secret', verifiedAt: 1437207288791 };
@@ -137,7 +134,7 @@ if (require.main === module) {
   create({
     key: '1892d335081d8d346e556c9c3c8ff2c3'
   , bits: 128
-  , storage: './authn.sqlcipher'
+  , filename: '/tmp/authn.sqlcipher'
   }).then(function (DB) {
   });
 }
