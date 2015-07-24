@@ -1,5 +1,14 @@
 'use strict';
 
+/*
+  // Workers can share any TCP connection
+  // In this case its a HTTP server
+  http.createServer(function(req, res) {
+    res.writeHead(200);
+    res.end("hello world\n");
+  }).listen(8000);
+*/
+
 // This service is intended to be bound on 127.0.0.1,
 // DO NOT expose it to the internet
 module.exports = function () {

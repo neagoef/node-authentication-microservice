@@ -1,15 +1,10 @@
 'use strict';
 
-var PromiseA = require('bluebird');
-var sqlite3 = require('./sqlite3-server');
-var path = require('path');
+function test(db) {
+  console.log('[TEST] yay!');
 
-sqlite3.create({
-    key: '1892d335081d8d346e556c9c3c8ff2c3'
-  , bits: 128
-  , filename: path.join('/tmp/authn.sqlcipher')
-  , verbose: false
-}).then(function (db) {
+  var sqlite3 = require('./sqlite3-server');
+  var PromiseA = require('bluebird');
   var DB = {};
   var tablename = 'authn';
 
@@ -88,54 +83,71 @@ sqlite3.create({
     db.runAsync("CREATE TABLE IF NOT EXISTS '" + sqlite3.sanitize(tablename)
       + "' (id TEXT, secret TEXT, json TEXT, PRIMARY KEY(id))"
     ).then(function () { resolve(DB); }, reject);
-  });
-}).then(function (DB) {
-  var data = { secret: 'super secret', verifiedAt: 1437207288791 };
-  //return DB.set('aj@the.dj', data)
-  //return DB.set('coolaj86@gmail.com', data)
-  // return DB.upsert('awesome@coolaj86.com', data)
-  return DB.upsert('awesome@coolaj86.com', data).then(function () {
-    console.log('added user');
-  });
-
-  /*
-  return DB.create('coolaj86@gmail.com', data).then(function () {
-    console.log('added user');
-  });
-  */
-
-  // need to 'DELETE FROM authn;' first
-  return DB.get('coolaj86@gmail.com').then(function (user) {
-    if (user) {
-      console.log('user', user);
-      return;
-    }
-
-    //var data = { secret: 'super secret', verifiedAt: Date.now() };
-    var data = { secret: 'super secret', verifiedAt: 1437207288790 };
-    return DB.create('coolaj86@gmail.com', data).then(function () {
+  }).then(function (DB) {
+    var data = { secret: 'super secret', verifiedAt: 1437207288791 };
+    //return DB.set('aj@the.dj', data)
+    //return DB.set('coolaj86@gmail.com', data)
+    // return DB.upsert('awesome@coolaj86.com', data)
+    return DB.upsert('awesome@coolaj86.com', data).then(function () {
       console.log('added user');
     });
 
-  });
-}).then(function () {}, function (err) {
-  // code SQLITE_CONSTRAINT
-  // errno 19
+    /*
+    return DB.create('coolaj86@gmail.com', data).then(function () {
+      console.log('added user');
+    });
+    */
 
-  console.error('blah');
-  //console.error(Object.keys(err)); // errno, code
-  console.error(err);
+    // need to 'DELETE FROM authn;' first
+    return DB.get('coolaj86@gmail.com').then(function (user) {
+      if (user) {
+        console.log('user', user);
+        return;
+      }
 
-});
+      //var data = { secret: 'super secret', verifiedAt: Date.now() };
+      var data = { secret: 'super secret', verifiedAt: 1437207288790 };
+      return DB.create('coolaj86@gmail.com', data).then(function () {
+        console.log('added user');
+      });
 
-/*
-if (require.main === module) {
-  // crypto.randomBytes(16).toString('hex');
-  create({
-    key: '1892d335081d8d346e556c9c3c8ff2c3'
-  , bits: 128
-  , filename: '/tmp/authn.sqlcipher'
-  }).then(function (DB) {
+    });
+  }).then(function () {}, function (err) {
+    // code SQLITE_CONSTRAINT
+    // errno 19
+
+    console.error('[ERROR] during test');
+    //console.error(Object.keys(err)); // errno, code
+    console.error(err);
+
   });
 }
-*/
+
+function create(/*isMaster*/) {
+  var path = require('path');
+  var sqlite3 = require('./sqlite3-server');
+
+  var promise = sqlite3.create({
+      key: '1892d335081d8d346e556c9c3c8ff2c3'
+    , bits: 128
+    , filename: path.join('/tmp/authn.sqlcipher')
+    , verbose: false
+  });
+
+  return promise;
+
+  /*
+  if (require.main === module) {
+    // crypto.randomBytes(16).toString('hex');
+    create({
+      key: '1892d335081d8d346e556c9c3c8ff2c3'
+    , bits: 128
+    , filename: '/tmp/authn.sqlcipher'
+    }).then(function (DB) {
+    });
+  }
+  */
+}
+
+module.exports.create = create;
+module.exports.test = test;
