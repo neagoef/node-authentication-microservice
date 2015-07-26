@@ -1,9 +1,10 @@
 'use strict';
 
 function test(db) {
-  console.log('[TEST] yay!');
-
-  var sqlite3 = require('./sqlite3-server');
+  // TODO if I put a failure right here,
+  // why doesn't the unhandled promise rejection fire?
+  //var sqlite3 = require('./sqlite3-server');
+  var sqlite3 = require('sqlite3-cluster');
   var PromiseA = require('bluebird');
   var DB = {};
   var tablename = 'authn';
