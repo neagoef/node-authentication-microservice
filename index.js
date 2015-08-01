@@ -1,26 +1,67 @@
 'use strict';
 
-function test(db) {
+function wrap(db, opts) {
   // TODO if I put a failure right here,
   // why doesn't the unhandled promise rejection fire?
-  //var sqlite3 = require('./sqlite3-server');
-  var sqlite3 = require('sqlite3-cluster');
   var PromiseA = require('bluebird');
   var DB = {};
-  var tablename = 'authn';
+  var tablename = db.escape('authn');
+  var idname = db.escape('id');
+  var UUID = require('node-uuid');
 
   db = PromiseA.promisifyAll(db);
 
-  db.on('trace', function (str) {
-    console.log('SQL:', str);
-  });
+  if (opts && opts.verbose || db.verbose) {
+    console.log('Getting Verbose up in here');
+    db.on('trace', function (str) {
+      console.log('SQL:', str);
+    });
 
-  db.on('profile', function (sql, ms) {
-    console.log('Profile:', ms);
-  });
+    db.on('profile', function (sql, ms) {
+      console.log('Profile:', ms);
+    });
+  }
+
+  function simpleMap(rows) {
+    if (!rows) {
+      return [];
+    }
+
+    var results = rows.map(function (row, i) {
+      // set up for garbage collection
+      rows[i] = null;
+
+      var obj;
+
+      if (row.json) {
+        obj = JSON.parse(row.json);
+      } else {
+        obj = {};
+      }
+
+      obj[idname] = row[idname];
+    });
+    // set up for garbage collection
+    rows.length = 0;
+    rows = null;
+
+    return results;
+  }
+
+  DB.find = function (opts) {
+    var sql = 'SELECT * FROM ' + tablename + ' WHERE ';
+    Object.keys(opts).forEach(function (key, i) {
+      if (i !== 0) {
+        sql += 'AND ';
+      }
+      sql += db.escape(key) + ' ' + db.escape(opts[key]);
+    });
+
+    return db.getAsync("SELECT * FROM " + tablename + " " + sql, []).then(simpleMap);
+  };
 
   DB.get = function (id) {
-    return db.getAsync("SELECT * FROM authn WHERE id = ?", [id]);
+    return db.getAsync("SELECT * FROM " + tablename + " WHERE " + idname + " = ?", [id]).then(simpleMap);
   };
 
   DB.upsert = function (id, data) {
@@ -35,11 +76,32 @@ function test(db) {
     });
   };
 
+  DB.save = function (data) {
+    if (!data[idname]) {
+      // NOTE saving the id both in the object and the id for now
+      data[idname] = UUID.v4();
+      return DB.create(data[idname], data).then(function (/*stats*/) {
+        //data._rowid = stats.id;
+        return data;
+      });
+    }
+
+    return DB.set(data[idname], data).then(function (result) {
+      var success = result.changes >= 1;
+
+      if (success) {
+        return result;
+      }
+    });
+  };
+
   DB.create = function (id, data) {
+    console.log('data');
+    console.log(data);
     var json = JSON.stringify(data);
 
     return new PromiseA(function (resolve, reject) {
-      db.run("INSERT INTO authn (id, json) VALUES (?, ?)", [id, json], function (err) {
+      db.run("INSERT INTO " + tablename + " (" + idname + ", json) VALUES (?, ?)", [id, json], function (err) {
         if (err) {
           reject(err);
           return;
@@ -53,6 +115,7 @@ function test(db) {
         console.log('insert lastID', this.lastID); // sqlite's internal rowId
         console.log('insert changes', this.changes);
 
+        //this.id = id;
         resolve(this);
       });
     });
@@ -62,7 +125,7 @@ function test(db) {
     var json = JSON.stringify(data);
 
     return new PromiseA(function (resolve, reject) {
-      db.run("UPDATE authn SET json = ? WHERE id = ?", [json, id], function (err) {
+      db.run("UPDATE " + tablename + " SET json = ? WHERE " + idname + " = ?", [json, id], function (err) {
         if (err) {
           reject(err);
           return;
@@ -80,75 +143,36 @@ function test(db) {
     });
   };
 
-  return new PromiseA(function (resolve, reject) {
-    db.runAsync("CREATE TABLE IF NOT EXISTS '" + sqlite3.sanitize(tablename)
-      + "' (id TEXT, secret TEXT, json TEXT, PRIMARY KEY(id))"
-    ).then(function () { resolve(DB); }, reject);
-  }).then(function (DB) {
-    var data = { secret: 'super secret', verifiedAt: 1437207288791 };
-    //return DB.set('aj@the.dj', data)
-    //return DB.set('coolaj86@gmail.com', data)
-    // return DB.upsert('awesome@coolaj86.com', data)
-    return DB.upsert('awesome@coolaj86.com', data).then(function () {
-      console.log('added user');
-    });
+  DB.destroy = function (id) {
+    if ('object' === typeof id) {
+      id = id[idname];
+    }
+    return new PromiseA(function (resolve, reject) {
+      db.run("DELETE FROM " + tablename + " WHERE " + idname + " = ?", [id], function (err) {
+        if (err) {
+          reject(err);
+          return;
+        }
 
-    /*
-    return DB.create('coolaj86@gmail.com', data).then(function () {
-      console.log('added user');
-    });
-    */
+        // it isn't possible to tell if the update succeeded or failed
+        // only if the update resulted in a change or not
+        console.log(this); // sql, lastID, changes
+        console.log(this.sql);
+        console.log('delete lastID', this.lastID); // always 0 (except on INSERT)
+        console.log('delete changes', this.changes);
 
-    // need to 'DELETE FROM authn;' first
-    return DB.get('coolaj86@gmail.com').then(function (user) {
-      if (user) {
-        console.log('user', user);
-        return;
-      }
-
-      //var data = { secret: 'super secret', verifiedAt: Date.now() };
-      var data = { secret: 'super secret', verifiedAt: 1437207288790 };
-      return DB.create('coolaj86@gmail.com', data).then(function () {
-        console.log('added user');
+        resolve(this);
       });
-
     });
-  }).then(function () {}, function (err) {
-    // code SQLITE_CONSTRAINT
-    // errno 19
+  };
 
-    console.error('[ERROR] during test');
-    //console.error(Object.keys(err)); // errno, code
-    console.error(err);
+  DB._db = db;
 
+  return new PromiseA(function (resolve, reject) {
+    db.runAsync("CREATE TABLE IF NOT EXISTS '" + tablename
+      + "' (" + idname + " TEXT, secret TEXT, json TEXT, PRIMARY KEY(" + idname + "))"
+    ).then(function () { resolve(DB); }, reject);
   });
 }
 
-function create(/*isMaster*/) {
-  var path = require('path');
-  var sqlite3 = require('./sqlite3-server');
-
-  var promise = sqlite3.create({
-      key: '1892d335081d8d346e556c9c3c8ff2c3'
-    , bits: 128
-    , filename: path.join('/tmp/authn.sqlcipher')
-    , verbose: false
-  });
-
-  return promise;
-
-  /*
-  if (require.main === module) {
-    // crypto.randomBytes(16).toString('hex');
-    create({
-      key: '1892d335081d8d346e556c9c3c8ff2c3'
-    , bits: 128
-    , filename: '/tmp/authn.sqlcipher'
-    }).then(function (DB) {
-    });
-  }
-  */
-}
-
-module.exports.create = create;
-module.exports.test = test;
+module.exports.wrap = wrap;

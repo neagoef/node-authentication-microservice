@@ -7,6 +7,8 @@
     "bluebird": "^2.9.33",
     "cluster-store": "^1.0.0",
     "express": "^4.13.1",
+    "node-uuid": "^1.4.3",
+    "secret-utils": "^2.0.0",
     "sqlite3-cluster": "^1.0.0",
     "ws": "^0.7.2"
   },
