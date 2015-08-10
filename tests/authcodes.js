@@ -25,15 +25,18 @@ function init(Codes) {
     var _$code = $code
       ;
 
-    console.log('_$code');
-    console.log(_$code);
     $code = null;
+
     return Codes.destroy(_$code);
   }
 
   // Test that success is successful
   tests = [
-    function ($code) {
+    function () {
+      // test setup / teardown
+      return PromiseA.resolve();
+    }
+  , function ($code) {
       return Codes.validate($code.uuid, $code.code, { skipCheckId: true }).then(function (correct) {
         if (!correct || !correct.uuid) {
           console.error(correct);
@@ -79,6 +82,7 @@ function init(Codes) {
         }
       });
     }
+  // TODO test that the database is empty
   ];
 
   testsCheckId = [
@@ -135,7 +139,7 @@ function init(Codes) {
   }
 
   phase1().then(phase2).then(function () {
-    console.log('%d of %d tests complete', count, tests.length + testsCheckId.length);
+    console.info('%d of %d tests complete', count, tests.length + testsCheckId.length);
     process.exit();
   });
 }

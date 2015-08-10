@@ -13,7 +13,7 @@ function run(opts) {
   return promise.then(function (db) {
     return db.init({ bits: 128, key: config.key });
   }).then(function (db) {
-    return wrap.wrap(db, { idname: 'id', tablename: opts && opts.tablename || 'authn' });
+    return wrap.wrap(db, { idname: 'uuid', tablename: opts && opts.tablename || 'authn' });
   });
 
   /*

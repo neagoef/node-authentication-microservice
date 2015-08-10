@@ -5,8 +5,8 @@ function wrap(db, opts) {
   // why doesn't the unhandled promise rejection fire?
   var PromiseA = require('bluebird');
   var DB = {};
-  var tablename = db.escape('authn');
-  var idname = db.escape('id');
+  var tablename = db.escape(opts.tablename || 'data');
+  var idname = db.escape(opts.idname || 'id');
   var UUID = require('node-uuid');
 
   db = PromiseA.promisifyAll(db);
@@ -20,6 +20,24 @@ function wrap(db, opts) {
     db.on('profile', function (sql, ms) {
       console.log('Profile:', ms);
     });
+  }
+
+  function simpleParse(row) {
+    var obj;
+
+    if (!row) {
+      return null;
+    }
+
+    if (row.json) {
+      obj = JSON.parse(row.json);
+    } else {
+      obj = {};
+    }
+
+    obj[idname] = row[idname];
+
+    return obj;
   }
 
   function simpleMap(rows) {
@@ -50,6 +68,7 @@ function wrap(db, opts) {
 
   DB.find = function (opts) {
     var sql = 'SELECT * FROM ' + tablename + ' WHERE ';
+
     Object.keys(opts).forEach(function (key, i) {
       if (i !== 0) {
         sql += 'AND ';
@@ -57,11 +76,24 @@ function wrap(db, opts) {
       sql += db.escape(key) + ' ' + db.escape(opts[key]);
     });
 
-    return db.getAsync("SELECT * FROM " + tablename + " " + sql, []).then(simpleMap);
+    return db.allAsync("SELECT * FROM " + tablename + " " + sql, []).then(simpleMap);
   };
 
   DB.get = function (id) {
-    return db.getAsync("SELECT * FROM " + tablename + " WHERE " + idname + " = ?", [id]).then(simpleMap);
+    var sql = "SELECT * FROM " + tablename + " WHERE " + idname + " = ?";
+    var values = [id];
+
+    return db.getAsync(sql, values).then(function (rows) {
+      if (Array.isArray(rows)) {
+        if (!rows.length) {
+          return null;
+        }
+
+        return rows[0] || null;
+      }
+
+      return rows;
+    }).then(simpleParse);
   };
 
   DB.upsert = function (id, data) {
@@ -96,12 +128,13 @@ function wrap(db, opts) {
   };
 
   DB.create = function (id, data) {
-    console.log('data');
-    console.log(data);
     var json = JSON.stringify(data);
 
     return new PromiseA(function (resolve, reject) {
-      db.run("INSERT INTO " + tablename + " (" + idname + ", json) VALUES (?, ?)", [id, json], function (err) {
+      var sql = "INSERT INTO " + tablename + " (" + idname + ", json) VALUES (?, ?)";
+      var values = [id, json];
+
+      db.run(sql, values, function (err) {
         if (err) {
           reject(err);
           return;
@@ -110,10 +143,13 @@ function wrap(db, opts) {
         // NOTE changes is 1 even if the value of the updated record stays the same
         // (PostgreSQL would return 0 in that case)
         // thus if changes is 0 then it failed, otherwise it succeeded
+        /*
+        console.log('[log db wrapper insert]');
         console.log(this); // sql, lastID, changes
         console.log(this.sql);
         console.log('insert lastID', this.lastID); // sqlite's internal rowId
         console.log('insert changes', this.changes);
+        */
 
         //this.id = id;
         resolve(this);
@@ -133,10 +169,13 @@ function wrap(db, opts) {
 
         // it isn't possible to tell if the update succeeded or failed
         // only if the update resulted in a change or not
+        /*
+        console.log('[log db wrapper set]');
         console.log(this); // sql, lastID, changes
         console.log(this.sql);
         console.log('update lastID', this.lastID); // always 0 (except on INSERT)
         console.log('update changes', this.changes);
+        */
 
         resolve(this);
       });
@@ -147,8 +186,12 @@ function wrap(db, opts) {
     if ('object' === typeof id) {
       id = id[idname];
     }
+
     return new PromiseA(function (resolve, reject) {
-      db.run("DELETE FROM " + tablename + " WHERE " + idname + " = ?", [id], function (err) {
+      var sql = "DELETE FROM " + tablename + " WHERE " + idname + " = ?";
+      var values = [id];
+
+      db.run(sql, values, function (err) {
         if (err) {
           reject(err);
           return;
@@ -156,10 +199,13 @@ function wrap(db, opts) {
 
         // it isn't possible to tell if the update succeeded or failed
         // only if the update resulted in a change or not
+        /*
+        console.log('[log db wrapper delete]');
         console.log(this); // sql, lastID, changes
         console.log(this.sql);
         console.log('delete lastID', this.lastID); // always 0 (except on INSERT)
         console.log('delete changes', this.changes);
+        */
 
         resolve(this);
       });
