@@ -3,15 +3,13 @@
 var PromiseA = require('bluebird').Promise;
 
 function testDb(DB) {
-  console.log('hello');
   return PromiseA.resolve(DB).then(function (DB) {
-    console.log('hello 2');
     var data = { secret: 'super secret', verifiedAt: 1437207288791 };
     //return DB.set('aj@the.dj', data)
     //return DB.set('coolaj86@gmail.com', data)
     // return DB.upsert('awesome@coolaj86.com', data)
     return DB.upsert('awesome@coolaj86.com', data).then(function () {
-      console.log('added user');
+      console.info('[PASS] added user');
     });
 
     /*
@@ -23,14 +21,14 @@ function testDb(DB) {
     // need to 'DELETE FROM authn;' first
     return DB.get('coolaj86@gmail.com').then(function (user) {
       if (user) {
-        console.log('user', user);
+        console.info('user', user);
         return;
       }
 
       //var data = { secret: 'super secret', verifiedAt: Date.now() };
       var data = { secret: 'super secret', verifiedAt: 1437207288790 };
       return DB.create('coolaj86@gmail.com', data).then(function () {
-        console.log('added user');
+        console.info('added user');
       });
 
     });
@@ -41,7 +39,6 @@ function testDb(DB) {
     console.error('[ERROR] during test');
     //console.error(Object.keys(err)); // errno, code
     console.error(err);
-
   });
 }
 
