@@ -8,8 +8,10 @@ try {
   // ignore
 }
 
+var config = require('../config.test.js');
+var getProofOfSecret = require('./pbkdf2-utils').getProofOfSecret;
+
 function dbsetup() {
-  var config = require('../config.test.js');
   var sqlite3 = require('sqlite3-cluster');
   var wrap = require('dbwrap');
 
@@ -99,7 +101,23 @@ function init(Logins) {
       }).then(function () {
         throw new Error("didn't fail to create unsupported type");
       }).error(function (err) {
-        if (/instagram/.test(err.message)) {
+        if ('E_UNKNOWN_TYPE' === err.code) {
+          return;
+        }
+
+        throw err;
+      });
+    }
+  , function failLowEntropy() {
+      // fail because this layer doesn't manage password requirements
+      return Logins.create({
+        node: 'coolaj86@gmail.com'
+      , type: 'email' // could be something like slack as well
+      , secret: 'TODO_PROOF_OF_SECRET'
+      }).then(function () {
+        throw new Error("didn't fail to create unsupported type");
+      }).error(function (err) {
+        if ('E_LOW_ENTROPY' === err.code) {
           return;
         }
 
@@ -107,13 +125,15 @@ function init(Logins) {
       });
     }
   , function passRecoverable() {
+      var userId = 'coolaj86@gmail.com';
+
       // success because it's inherently recoverable
-      return Logins.create({
-        node: 'coolaj86@gmail.com'
-      , type: 'email' // could be something like slack as well
-      , secret: 'TODO_PROOF_OF_SECRET'
-      }).then(function () {
-        console.log('double yay');
+      return getProofOfSecret(config.appId, userId, 'MY_SPECIAL_SECRET').then(function (proof) {
+        return Logins.create({
+          node: userId
+        , type: 'email' // could be something like slack as well
+        , secret: proof
+        });
       });
     }
   , function failUnrecoverable() {
@@ -124,10 +144,11 @@ function init(Logins) {
       , type: 'username'
       , secret: 'TODO_PROOF_OF_SECRET'
       , recoveryNodes: [{ node: 'farmwood' }]
-      }).then(function () {
+      }).then(function (err) {
+        console.error('nofail', err);
         throw new Error("didn't fail to create unrecoverable account");
       }).error(function (err) {
-        if (/recoverable/.test(err.message)) {
+        if ('E_NO_AUTHORITY' === err.code) {
           return;
         }
 
@@ -142,6 +163,12 @@ function init(Logins) {
       , recoveryNodes: [{ node: 'john.doe@email.com' }]
       }).then(function () {
         throw new Error("didn't fail to create unsecured username account");
+      }).error(function (err) {
+        if (/secret/.test(err.message)) {
+          return;
+        }
+
+        throw err;
       });
     }
   , function passUnsecuredEmail() {
@@ -258,15 +285,18 @@ function init(Logins) {
   ];
 
   var testsLen = tests.length;
+  var curFn;
 
   function phase1() {
     return new PromiseA(function (resolve) {
-      var curFn;
 
       function callDoStuff() {
         curFn = tests.shift();
-        return doStuff(curFn, testsLen - tests.length).error(function (err) {
-          err.fn = curFn;
+        return doStuff(curFn, testsLen - tests.length).catch(function (err) {
+          return teardown().then(function () {
+            throw err;
+          });
+        }).error(function (err) {
           return teardown().then(function () {
             throw err;
           });
@@ -289,7 +319,7 @@ function init(Logins) {
       }).catch(function (err) {
         console.error('[ERROR] failure');
         console.error(err);
-        console.error(err.fn.toString());
+        console.error(curFn.toString());
         resolve();
       });
     });
