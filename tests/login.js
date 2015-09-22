@@ -202,13 +202,11 @@ function init(Logins) {
         type: 'email'
       , node: 'coolaj86@gmail.com'
       }).then(function (claim) {
-        console.log(claim);
-        throw new Error('not implemented');
         // Note: failing with a bad claim is tested in authcodes tests
         return Logins.validateClaim({
           type: 'email'
         , node: 'coolaj86@gmail.com'
-          // soft expirey
+          // soft expirey // TODO what was this for?
         , expiresIn: 180 * 24 * 60 * 60 * 1000
         , claim: claim
         });
