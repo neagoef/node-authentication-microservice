@@ -137,22 +137,26 @@ function init(Logins) {
       });
     }
   , function failUnrecoverable() {
-      console.log('failUnrec');
       // fail because there's no recoverable
-      return Logins.create({
-        node: 'coolaj86'
-      , type: 'username'
-      , secret: 'TODO_PROOF_OF_SECRET'
-      , recoveryNodes: [{ node: 'farmwood' }]
-      }).then(function (err) {
-        console.error('nofail', err);
-        throw new Error("didn't fail to create unrecoverable account");
-      }).error(function (err) {
-        if ('E_NO_AUTHORITY' === err.code) {
-          return;
-        }
 
-        throw err;
+      var userId = 'coolaj86';
+
+      return getProofOfSecret(config.appId, userId, 'MY_SPECIAL_SECRET').then(function (proof) {
+        return Logins.create({
+          node: userId
+        , type: 'username'
+        , secret: proof
+        , recoveryNodes: [{ node: 'farmwood' }]
+        }).then(function (err) {
+          console.error('nofail', err);
+          throw new Error("didn't fail to create unrecoverable account");
+        }).error(function (err) {
+          if ('E_NO_AUTHORITY' === err.code) {
+            return;
+          }
+
+          throw err;
+        });
       });
     }
   , function failUnsecured() {
@@ -164,39 +168,42 @@ function init(Logins) {
       }).then(function () {
         throw new Error("didn't fail to create unsecured username account");
       }).error(function (err) {
-        if (/secret/.test(err.message)) {
+        if ('E_LOW_ENTROPY' === err.code) {
           return;
         }
 
         throw err;
       });
     }
+  /*
   , function passUnsecuredEmail() {
       // pass because we can login via login code to email
+
       return Logins.create({
         node: 'coolaj86@gmail.com'
       , type: 'email'
-      }).then(function () {
-        throw new Error("didn't fail to create unsecured username account");
       });
     }
+  */
   , function notVerified() {
       // return false
       return Logins.isVerified({
         type: 'email'
       , node: 'coolaj86@gmail.com'
-      }).then(function (recoverable) {
-        if (recoverable) {
-          throw new Error('unverified email should not be recoverable');
+      }).then(function (verified) {
+        if (verified) {
+          throw new Error('unverified email should not be verified');
         }
       });
     }
   , function verify() {
       // nothing to test here, actually, just setup for the next function
-      Logins.claim({
+      return Logins.claim({
         type: 'email'
       , node: 'coolaj86@gmail.com'
       }).then(function (claim) {
+        console.log(claim);
+        throw new Error('not implemented');
         // Note: failing with a bad claim is tested in authcodes tests
         return Logins.validateClaim({
           type: 'email'
@@ -212,6 +219,10 @@ function init(Logins) {
       return Logins.isVerified({
         type: 'email'
       , node: 'coolaj86@gmail.com'
+      }).then(function (verified) {
+        if (!verified) {
+          throw new Error('verified email should not be unverified');
+        }
       });
     }
   , function createUsername() {
