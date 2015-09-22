@@ -133,6 +133,11 @@ function init(Logins) {
           node: userId
         , type: 'email' // could be something like slack as well
         , secret: proof
+        /*
+        , salt: somethingorother
+        , algo: 'pbkdf2-sha2'
+        , iterations: 1000
+        */
         });
       });
     }
@@ -228,7 +233,7 @@ function init(Logins) {
       return Logins.create({
         node: 'coolaj86'
       , type: 'username'
-      , recoveryNodes: ['coolaj86@gmail.com']
+      , recoveryNodes: [{ node: 'coolaj86@gmail.com', type: 'email' }]
       , secret: 'TODO_PROOF_OF_SECRET'
         // kdf meta
       , salt: kdfMeta.salt
