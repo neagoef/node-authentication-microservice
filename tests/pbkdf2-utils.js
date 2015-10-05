@@ -12,7 +12,7 @@ function sha256(hex) {
 
 function getProofOfSecret(appId, id, secret) {
   var userMeta = {
-    algorithm: 'KBKDF2'
+    algorithm: 'PBKDF2'
   , salt: sha256(new Buffer(id).toString('hex') + appId)
   , iterations: 372
   , length: 128
@@ -35,7 +35,12 @@ function getProofOfSecret(appId, id, secret) {
         return;
       }
 
-      resolve(bytes.toString('hex'));
+      resolve({
+        salt: appPbkdf2Salt.toString('hex')
+      , algo: hashname
+      , iter: iterations
+      , proof: bytes.toString('hex')
+      });
     });
   });
 }
