@@ -378,6 +378,15 @@ function init(Logins) {
         });
       });
     }
+  , function passClaimResetPassword() {
+      throw new Error('Not Implemented');
+    }
+  , function passVerifyResetPassword() {
+      throw new Error('Not Implemented');
+    }
+  , function passLoginViaAuthCode() {
+      throw new Error('Not Implemented');
+    }
   ];
 
   var testsLen = tests.length;
