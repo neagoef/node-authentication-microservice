@@ -9,7 +9,8 @@ try {
 }
 
 var config = require('../config.test.js');
-var getProofOfSecret = require('./pbkdf2-utils').getProofOfSecret;
+var getProofOfSecret = require('../lib/pbkdf2-utils').getProofOfSecret;
+var sha256 = require('../lib/pbkdf2-utils').sha256;
 
 function dbsetup() {
   var sqlite3 = require('sqlite3-cluster');
@@ -73,8 +74,9 @@ function init(Logins) {
   var tests;
   var count = 0;
   var kdfMeta = {
-    salt: 'hex'
-  , algo: 'pbkdf2'
+    salt: null // assigned below
+  , kdf: 'pbkdf2'
+  , algo: 'sha256'
   , iter: 678
   };
 
@@ -126,18 +128,19 @@ function init(Logins) {
     }
   , function passRecoverable() {
       var userId = 'coolaj86@gmail.com';
+      var salt;
 
       // success because it's inherently recoverable
-      return getProofOfSecret(config.appId, userId, 'MY_SPECIAL_SECRET').then(function (proof) {
+      salt = sha256(new Buffer(userId).toString('hex') + config.appId);
+      return getProofOfSecret(salt, 'MY_SPECIAL_SECRET', kdfMeta.iter).then(function (proof) {
         return Logins.create({
           node: userId
         , type: 'email' // could be something like slack as well
-        , secret: proof
-        /*
-        , salt: somethingorother
-        , algo: 'pbkdf2-sha2'
-        , iterations: 1000
-        */
+        , secret: proof.proof
+        , salt: proof.salt
+        , kdf: proof.kdf || 'pbkdf2'
+        , algo: proof.algo
+        , iter: proof.iter
         });
       });
     }
@@ -145,12 +148,18 @@ function init(Logins) {
       // fail because there's no recoverable
 
       var userId = 'coolaj86';
+      var salt;
 
-      return getProofOfSecret(config.appId, userId, 'MY_SPECIAL_SECRET').then(function (proof) {
+      salt = sha256(new Buffer(userId).toString('hex') + config.appId);
+      return getProofOfSecret(salt, 'MY_SPECIAL_SECRET', kdfMeta.iter).then(function (proof) {
         return Logins.create({
           node: userId
         , type: 'username'
-        , secret: proof
+        , secret: proof.proof
+        , salt: proof.salt
+        , kdf: proof.kdf
+        , algo: proof.algo
+        , iter: proof.iter
         , recoveryNodes: [{ node: 'farmwood' }]
         }).then(function (err) {
           console.error('nofail', err);
@@ -230,30 +239,25 @@ function init(Logins) {
     }
   , function createUsername() {
       // succeed with notice that account is verified recoverable
-      return Logins.create({
-        node: 'coolaj86'
-      , type: 'username'
-      , recoveryNodes: [{ node: 'coolaj86@gmail.com', type: 'email' }]
-      , secret: 'TODO_PROOF_OF_SECRET'
-        // kdf meta
-      , salt: kdfMeta.salt
-      , algo: kdfMeta.algo
-      , iter: kdfMeta.iter
-      });
-    }
-  , function failInvalidCreds() {
-      return Logins.login({
-        node: 'coolaj86'
-      , type: 'username'
-      , secret: 'NOT_MY_SECRET'
-      }).error(function (err) {
-        console.error('fail invalid creds');
-        console.error(err);
-        throw err;
+      var userId = 'coolaj86';
+
+      kdfMeta.salt = sha256(new Buffer(userId).toString('hex') + config.appId);
+      return getProofOfSecret(kdfMeta.salt, 'MY_SPECIAL_SECRET', kdfMeta.iter).then(function (proof) {
+        return Logins.create({
+          node: 'coolaj86'
+        , type: 'username'
+        , recoveryNodes: [{ node: 'coolaj86@gmail.com', type: 'email' }]
+
+        , secret: proof.proof
+        , salt: proof.salt
+        , kdf: proof.kdf
+        , algo: proof.algo
+        , iter: proof.iter
+        });
       });
     }
   , function passGetMeta() {
-      return Logins.login({
+      return Logins.getKdf({
         node: 'coolaj86'
       , type: 'username'
       }).then(function (meta) {
@@ -261,6 +265,13 @@ function init(Logins) {
           throw new Error('missing meta');
         }
 
+        if (meta.proof || meta.secret || meta.shadow) {
+          throw new Error('shadow should not exist');
+        }
+
+        if (meta.kdf !== kdfMeta.kdf) {
+          throw new Error('bad kdf');
+        }
         if (meta.algo !== kdfMeta.algo) {
           throw new Error('bad algo');
         }
@@ -272,28 +283,99 @@ function init(Logins) {
         }
       });
     }
+  , function failInvalidCreds() {
+      var userId = 'coolaj86';
+
+      return Logins.getKdf({
+        node: userId
+      , type: 'username'
+      }).then(function (meta) {
+        return getProofOfSecret(meta.salt, '__INVALID_SECRET__', meta.iter).then(function (proof) {
+
+          return Logins.login({
+            node: 'coolaj86'
+          , type: 'username'
+          , secret: proof.proof
+          }).then(function () {
+            throw new Error('should not pass with invalid credentials');
+          }).error(function (err) {
+            if ('E_INVALID_SECRET' === err.code) {
+              return;
+            }
+
+            throw err;
+          });
+        });
+      });
+    }
   , function passValidCreds() {
       // Succeed
-      Logins.login({
-        id: 'coolaj86'
+
+      var userId = 'coolaj86';
+
+      return Logins.getKdf({
+        node: userId
       , type: 'username'
-      , secret: 'TODO_PROOF_OF_SECRET'
+      }).then(function (meta) {
+        return getProofOfSecret(meta.salt, 'MY_SPECIAL_SECRET', meta.iter).then(function (proof) {
+          return Logins.login({
+            node: 'coolaj86'
+          , type: 'username'
+          , secret: proof.proof
+          });
+        });
       });
     }
   , function failChangePassword() {
-      Logins.changePassword({
-        id: 'coolaj86'
-      , type: 'username'
-      , secret: 'NOT_MY_SECRET'
-      , oldSecret: 'TODO_PROOF_OF_SECRET'
+      var userId = 'coolaj86';
+
+      return getProofOfSecret(kdfMeta.salt, '__INVALID_SECRET__', kdfMeta.iter).then(function (prevProof) {
+        var salt = sha256(new Buffer(userId).toString('hex') + config.appId);
+
+        return getProofOfSecret(salt, 'MY-new-special-SECRET', kdfMeta.iter).then(function (nextProof) {
+          return Logins.changePassword({
+            node: userId
+          , type: 'username'
+          , secret: prevProof.proof
+          , newSecret: {
+              secret: nextProof.proof
+            , salt: nextProof.salt
+            , kdf: nextProof.kdf
+            , algo: nextProof.algo
+            , iter: nextProof.iter
+            }
+          });
+        });
+      }).then(function () {
+        throw new Error("should not be able to change password with invalid password");
+      }).error(function (err) {
+        if ('E_INVALID_SECRET' === err.code) {
+          return;
+        }
+
+        throw err;
       });
     }
   , function passChangePassword() {
-      Logins.changePassword({
-        id: 'coolaj86'
-      , type: 'username'
-      , secret: 'TODO_PROOF_OF_SECRET'
-      , oldSecret: 'TODO_PROOF_OF_SECRET'
+      var userId = 'coolaj86';
+
+      return getProofOfSecret(kdfMeta.salt, 'MY_SPECIAL_SECRET', kdfMeta.iter).then(function (prevProof) {
+        var salt = sha256(new Buffer(userId).toString('hex') + config.appId);
+
+        return getProofOfSecret(salt, 'MY-new-special-SECRET', kdfMeta.iter).then(function (nextProof) {
+          return Logins.changePassword({
+            node: userId
+          , type: 'username'
+          , secret: prevProof.proof
+          , newSecret: {
+              secret: nextProof.proof
+            , salt: nextProof.salt
+            , kdf: nextProof.kdf
+            , algo: nextProof.algo
+            , iter: nextProof.iter
+            }
+          });
+        });
       });
     }
   ];
@@ -306,6 +388,7 @@ function init(Logins) {
 
       function callDoStuff() {
         curFn = tests.shift();
+
         return doStuff(curFn, testsLen - tests.length).catch(function (err) {
           return teardown().then(function () {
             throw err;
@@ -317,10 +400,14 @@ function init(Logins) {
         });
       }
 
-      function doStuff(fn, i) {
-        console.log('i1', i);
+      function doStuff(fn/*, i*/) {
+        if (!fn) {
+          return PromiseA.resolve();
+        }
+
+        //console.log('i1', i);
         return setup().then(fn).then(teardown).then(function () {
-          console.log('i2', i, count);
+          //console.log('i2', i, count);
           count += 1;
 
           return callDoStuff();
@@ -328,7 +415,6 @@ function init(Logins) {
       }
 
       callDoStuff().then(function () {
-        console.log('weirdness');
         resolve();
       }).catch(function (err) {
         console.error('[ERROR] failure');
