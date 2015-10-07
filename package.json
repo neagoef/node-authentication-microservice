@@ -4,7 +4,8 @@
   "description": "Authentication as a (Micro)Service",
   "main": "app.js",
   "dependencies": {
-    "bluebird": "^2.9.33",
+    "authenticator": "^1.0.0",
+    "bluebird": "^2.10.2",
     "cluster-store": "^1.0.0",
     "express": "^4.13.1",
     "node-uuid": "^1.4.3",
