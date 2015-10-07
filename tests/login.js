@@ -387,6 +387,13 @@ function init(Logins) {
   , function passLoginViaAuthCode() {
       throw new Error('Not Implemented');
     }
+  , function failVerifyTotp() {
+      throw new Error('Not Implemented');
+    }
+  , function passVerifyTotp() {
+      throw new Error('Not Implemented');
+    }
+  // TODO test a valid claim against an invalid account
   ];
 
   var testsLen = tests.length;
