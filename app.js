@@ -60,6 +60,6 @@ function init(Logins) {
 
 module.exports.create = function (server, DB) {
   return init(
-    require('./lib/login-impl').create({}, require('authcodes').create(DB.Codes), DB)
+    require('./lib/logins').create({}, require('authcodes').create(DB.Codes), DB)
   );
 };

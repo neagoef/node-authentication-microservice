@@ -451,7 +451,7 @@ module.exports.create = function () {
 
   dbsetup().then(function (DB) {
     return init(
-      require('../lib/login-impl').create({}, require('authcodes').create(DB.Codes), DB)
+      require('../lib/logins').create({}, require('authcodes').create(DB.Codes), DB)
     );
   });
 };
