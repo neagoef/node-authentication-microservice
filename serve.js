@@ -108,24 +108,23 @@ function setupMaster() {
 
 function setupWorker() {
   process.on('message', function (msg) {
-    sqlClient.then(function (db) {
-      console.log('cluster.worker.id', cluster.worker.id);
+    console.log('cluster.worker.id', cluster.worker.id);
 
+    if (!msg.init) {
+      console.warn('Unexpected Message');
+      console.warn(msg);
+      return;
+    }
+
+    if (initComplete) {
+      return;
+    }
+    initComplete = true;
+
+    sqlClient.then(function (db) {
       var http = require('http');
       var server = http.createServer();
       var port = 8088;
-
-      if (!msg.init) {
-        console.warn(msg);
-        return;
-      }
-
-      if (initComplete) {
-        return;
-      }
-
-      initComplete = true;
-
       var wrap = require('dbwrap');
 
       var dir = [
