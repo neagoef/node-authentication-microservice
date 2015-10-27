@@ -78,6 +78,7 @@ function init(Logins) {
   , kdf: 'pbkdf2'
   , algo: 'sha256'
   , iter: 678
+  , bits: 128
   };
 
   function setup() {
@@ -141,6 +142,7 @@ function init(Logins) {
         , kdf: proof.kdf || 'pbkdf2'
         , algo: proof.algo
         , iter: proof.iter
+        , bits: proof.bits
         });
       });
     }
@@ -253,6 +255,7 @@ function init(Logins) {
         , kdf: proof.kdf
         , algo: proof.algo
         , iter: proof.iter
+        , bits: proof.bits
         });
       });
     }
@@ -277,6 +280,9 @@ function init(Logins) {
         }
         if (meta.iter !== kdfMeta.iter) {
           throw new Error('bad iter');
+        }
+        if (meta.bits !== kdfMeta.bits) {
+          throw new Error('bad bits');
         }
         if (meta.salt !== kdfMeta.salt) {
           throw new Error('bad salt');
@@ -343,6 +349,7 @@ function init(Logins) {
             , kdf: nextProof.kdf
             , algo: nextProof.algo
             , iter: nextProof.iter
+            , bits: nextProof.bits
             }
           });
         });
@@ -373,6 +380,7 @@ function init(Logins) {
             , kdf: nextProof.kdf
             , algo: nextProof.algo
             , iter: nextProof.iter
+            , bits: nextProof.bits
             }
           });
         });
