@@ -20,7 +20,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/coolaj86/authentication-microservice.git"
+    "url": "git+https://github.com/OAuth3/authentication-microservice.git"
   },
   "keywords": [
     "authn",
@@ -35,10 +35,10 @@
     "email",
     "phone"
   ],
-  "author": "AJ ONeal <coolaj86@gmail.com> (http://coolaj86.com/)",
-  "license": "Apache-2.0",
+  "author": "AJ ONeal <coolaj86@gmail.com> (https://coolaj86.com/)",
+  "license": "(MIT OR Apache-2.0)",
   "bugs": {
-    "url": "https://github.com/coolaj86/authentication-microservice/issues"
+    "url": "https://github.com/OAuth3/node-authentication-microservice/issues"
   },
-  "homepage": "https://github.com/coolaj86/authentication-microservice#readme"
+  "homepage": "https://github.com/OAuth3/node-authentication-microservice#readme"
 }
