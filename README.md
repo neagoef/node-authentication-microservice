@@ -1,9 +1,5 @@
-# authentication-microservice
-Authentication as a Service
+node-authentication-microservice
+=====
 
-LICENSE
-=======
+Moved to https://git.daplie.com/OAuth3/node-authentication-microservice
 
-Dual-licensed MIT and Apache-2.0
-
-See LICENSE
